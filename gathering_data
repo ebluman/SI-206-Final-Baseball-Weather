@@ -1,0 +1,85 @@
+# BeautifulSoup and API: Weather and Baseball
+# Names: Emma Bluman & Joshua Richman
+# Date: 4/12
+
+import requests
+from bs4 import BeautifulSoup
+import re
+import sqlite3
+import os
+
+
+#Beautiful Soup ---> Create a loop to go through all the dates and find the home game
+#Then collect win or loss (1 or 0), date (key), total runs
+#Save Information to database
+
+def database_setup(db_name):
+    path = os.path.dirname(os.path.abspath(__file__))
+    conn = sqlite3.connect(path +'/'+db_name)
+    cur = conn.cursor()
+    return cur, conn
+
+global date_list
+date_list = []
+def soup_database(base_url, team, year, month, month_id, cur, conn):
+    cur.execute('CREATE TABLE IF NOT EXISTS Baseball (Date DATE PRIMARY KEY, Win TEXT, Runs_Scored INT, Runs_Allowed INT, Total_Runs INT)')
+    url = base_url + team + '/' + str(year) + '-schedule-scores.shtml' 
+    # print(url)
+    response = requests.get(url)
+    content = response.content
+    soup = BeautifulSoup(content, 'html.parser')
+    tag = soup.find('div', id = 'content')
+    area = tag.find('div', id = 'all_team_schedule')
+    table = area.find('table', id = 'team_schedule')
+    rows = table.find_all('tr')
+    for row in rows:
+        cells = row.find_all('td')  
+        if len(cells) > 1:
+            if cells[3].text != "@":
+                if month in cells[0].text:
+                    full_date = cells[0].text
+                    day_date = re.search('\d{1,2}', full_date)
+                    day = day_date.group(0)
+                    if len(day) == 1:
+                        day = "0" + str(day)
+                    date = str(year) + "-" + str(month_id) + '-' + str(day)
+                    date_list.append(date)
+                    win = cells[5].text.strip('-')[0]
+                    runs_scored = int(cells[6].text)
+                    runs_allowed = int(cells[7].text)
+                    total_runs = runs_scored + runs_allowed
+                    
+                    cur.execute("INSERT OR IGNORE INTO Baseball (Date, Win, Runs_Scored, Runs_Allowed, Total_Runs) VALUES (?,?,?,?,?)", (date, win, runs_scored, runs_allowed, total_runs))
+    conn.commit()
+
+                    
+
+                    
+
+
+
+
+
+
+
+
+
+
+#Months must be denoted as Apr, May, Jun, Jul, Aug, Sep, Oct
+
+curr, conn = database_setup('baseball')
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Apr", "04", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "May", "05", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Jun", "06", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Jul", "07", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Aug", "08", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Sep", "09", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2021', "Oct", "10", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Apr", "04", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "May", "05", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Jun", "06", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Jul", "07", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Aug", "08", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Sep", "09", curr, conn)
+soup_database('https://www.baseball-reference.com/teams/', 'NYM', '2022', "Oct", "10", curr, conn)
+print(date_list)
