@@ -108,23 +108,25 @@ def main():
     #creates WMO table and direction table
     #-------------------------------------------------INPUT-------------------------------------------------------#
     #Can change name of database here
-    cur, conn = open_database('Weather.db')
+    cur, conn = open_database('Weather2.db')
     wmodata(cur,conn)
     direction(cur,conn)
     #puts single month from single year into database
-    month = 10 #did not get yet
-    year = 2022
-    monthyear = date_list[year][month-4]
-    apiread(month,year,monthyear,cur,conn)
+    #month = 10 #did not get yet
+    #year = 2022
+    #monthyear = date_list[year][month-4]
+    #apiread(month,year,monthyear,cur,conn)
     #-----------------------------------------------END INPUT-----------------------------------------------------#
     
     #puts all data into weather database Day_Weather in loop (still less than 25 each time)
-    #for year in date_list:
-    #    for month in range(len(date_list[year])):
-    #        print(month+4)
-    #        print("Inputing a month of weather data...")
-    #        apiread(month+4,year,year[2021][month],cur,conn)
-    #        time.sleep(5)
+    #cur.execute("DROP TABLE Day_Weather")
+    for year in date_list:
+        for month in range(4,len(date_list[year])+4):
+            print("Inputing month " + str(month) + " of year " + str(year) + " weather data...")
+            #monthyear = year[]
+            apiread(month,year,date_list[year][month-4],cur,conn)
+            time.sleep(5)
+    print("Finished Database!")
     pass
 
 def open_database(db_name):
