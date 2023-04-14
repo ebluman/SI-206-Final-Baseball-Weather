@@ -18,14 +18,14 @@ def database_setup(db_name):
     cur = conn.cursor()
     return cur, conn
 
-#Create a global date list to connect both the weather and baseball data
-global date_list
-date_list = []
+#Create a global date dict to connect both the weather and baseball data
+global date_dict
+date_dict = {}
 
 
 
 #Extract Baseball Data
-def soup_database(year, month, month_id, cur, conn):
+def soup_database(year, month_abrev, month_full, month_id, cur, conn):
     #Create Table
     cur.execute('CREATE TABLE IF NOT EXISTS Baseball (Date DATE PRIMARY KEY, Win TEXT, Runs_Scored INT, Runs_Allowed INT, Total_Runs INT)')
     
@@ -41,18 +41,20 @@ def soup_database(year, month, month_id, cur, conn):
     area = tag.find('div', id = 'all_team_schedule')
     table = area.find('table', id = 'team_schedule')
     rows = table.find_all('tr')
+    month_list = []   #create list for month that will be imported in dictionary
     for row in rows:
         cells = row.find_all('td')  #extract table data
         if len(cells) > 1:
             if cells[3].text != "@":   #denotes home games if not @ a stadium
-                if month in cells[0].text:
+                if month_abrev in cells[0].text:
                     full_date = cells[0].text #get date
                     day_date = re.search('\d{1,2}', full_date) 
                     day = day_date.group(0)
                     if len(day) == 1:
                         day = "0" + str(day)
                     date = str(year) + "-" + str(month_id) + '-' + str(day) #put date in right format
-                    date_list.append(date)
+                    month_list.append(date)
+                    
                     win = cells[5].text.strip('-')[0] #Simply want win or loss do not need the wo denotation
                     runs_scored = int(cells[6].text)
                     runs_allowed = int(cells[7].text)
@@ -60,9 +62,15 @@ def soup_database(year, month, month_id, cur, conn):
                     
                     #Write row of table for each date
                     cur.execute("INSERT OR IGNORE INTO Baseball (Date, Win, Runs_Scored, Runs_Allowed, Total_Runs) VALUES (?,?,?,?,?)", (date, win, runs_scored, runs_allowed, total_runs))
-    
+                    # date_dict[month_full + year] = month_list
+    if month_id[0] == 0:
+        date_dict[month_id[1] + month_full+year] = month_list   # Use this to store for weather api
+    else: 
+        date_dict[month_id + month_full+year] = month_list
+    # print(date_dict)
     #Commit all rows
     conn.commit()
+
 
                     
 
@@ -102,6 +110,24 @@ def apiread(month, year, monthyear, cur, conn):
     conn.commit()
     pass
 
+def call_apiread(date_dict, curr, conn): 
+    for monthyear in date_dict:
+        if monthyear[0] == '0':
+            month = monthyear[1]
+        else:
+            month = monthyear[0:2]
+        print(month)
+        year = monthyear[-4:]
+        print(year)
+        monthyear = monthyear[2:]
+        print(monthyear)
+        # print("Inputing month " + str(month) + " of year " + str(year) + " weather data...")
+        apiread(int(month), year, monthyear, curr, conn)
+
+
+
+
+
 def wmodata(cur,conn):
     wmo = [(0,"fair"),(1,"mainly clear"),(2,"partly cloudy"),(3,"overcast"),(51,"light drizzle"),(53,"moderate drizzle"),(55,"heavy drizzle"),(61,"slight rain"),(63,"moderate rain"),(65,"heavy rain")]   
     cur.execute("CREATE TABLE IF NOT EXISTS Weather_Codes (weather_code INT PRIMARY KEY, weather_type TEXT)") 
@@ -123,66 +149,84 @@ def direction(cur,conn):
 
 
 def main():
-    #2021
-    april2021 = ["2021-04-08","2021-04-10","2021-04-13","2021-04-14","2021-04-23",
-                 "2021-04-24","2021-04-25","2021-04-27","2021-04-28"] #9 
-    may2021 = ["2021-05-07","2021-05-08","2021-05-09","2021-05-11","2021-05-12",
-               "2021-05-24","2021-05-25","2021-05-27","2021-05-29"] #9 
-    june2021 = ["2021-06-11","2021-06-12","2021-06-13","2021-06-14","2021-06-15",
-                "2021-06-16","2021-06-17","2021-06-21","2021-06-22","2021-06-23",
-                "2021-06-25","2021-06-26","2021-06-27"] #13
-    july2021 = ["2021-07-05","2021-07-07","2021-07-09","2021-07-10","2021-07-11",
-                "2021-07-23","2021-07-24","2021-07-25","2021-07-26","2021-07-27",
-                "2021-07-28","2021-07-29","2021-07-30","2021-07-31"] #14
-    august2021 = ["2021-08-01","2021-08-11","2021-08-12","2021-08-13","2021-08-14",
-                  "2021-08-15","2021-08-24","2021-08-25","2021-08-26","2021-08-27",
-                  "2021-08-28","2021-08-29","2021-08-31"] #13
-    september2021 = ["2021-09-02","2021-09-10","2021-09-11","2021-09-12","2021-09-13",
-                     "2021-09-14","2021-09-15","2021-09-17","2021-09-18","2021-09-19",
-                     "2021-09-28","2021-09-29","2021-09-30"] #13
-    october2021 = [] #0
-    #2022
-    april2022 = ["2022-04-15","2022-04-16","2022-04-17","2022-04-19","2022-04-20",
-                 "2022-04-21","2022-04-29","2022-04-30"] #8
-    may2022 = ["2022-05-01","2022-05-02","2022-05-03","2022-05-04","2022-05-13",
-               "2022-05-14","2022-05-15","2022-05-17","2022-05-18","2022-05-19",
-               "2022-05-27","2022-05-28","2022-05-29","2022-05-30","2022-05-31"] #15 
-    june2022 = ["2022-06-01","2022-06-14","2022-06-15","2022-06-16","2022-06-17",
-                "2022-06-18","2022-06-19","2022-06-20","2022-06-28","2022-06-29"] #10 
-    july2022 = ["2022-07-01","2022-07-02","2022-07-03","2022-07-07","2022-07-08",
-                "2022-07-09","2022-07-10","2022-07-22","2022-07-23","2022-07-24",
-                "2022-07-26","2022-07-27"] #12 
-    august2022 = ["2022-08-04","2022-08-05","2022-08-06","2022-08-07","2022-08-08",
-                  "2022-08-09","2022-08-10","2022-08-12","2022-08-13","2022-08-14",
-                  "2022-08-25","2022-08-26","2022-08-27","2022-08-28","2022-08-30","2022-08-31"] #16
-    september2022 = ["2022-09-01","2022-09-02","2022-09-03","2022-09-04","2022-09-12",
-                     "2022-09-13","2022-09-14","2022-09-15","2022-09-16","2022-09-17",
-                     "2022-09-18","2022-09-27","2022-09-28"] #13
-    october2022 = ["2022-10-04","2022-10-05","2022-10-07","2022-10-08","2022-10-09"] #5
+    # #2021
+    # april2021 = ["2021-04-08","2021-04-10","2021-04-13","2021-04-14","2021-04-23",
+    #              "2021-04-24","2021-04-25","2021-04-27","2021-04-28"] #9 
+    # may2021 = ["2021-05-07","2021-05-08","2021-05-09","2021-05-11","2021-05-12",
+    #            "2021-05-24","2021-05-25","2021-05-27","2021-05-29"] #9 
+    # june2021 = ["2021-06-11","2021-06-12","2021-06-13","2021-06-14","2021-06-15",
+    #             "2021-06-16","2021-06-17","2021-06-21","2021-06-22","2021-06-23",
+    #             "2021-06-25","2021-06-26","2021-06-27"] #13
+    # july2021 = ["2021-07-05","2021-07-07","2021-07-09","2021-07-10","2021-07-11",
+    #             "2021-07-23","2021-07-24","2021-07-25","2021-07-26","2021-07-27",
+    #             "2021-07-28","2021-07-29","2021-07-30","2021-07-31"] #14
+    # august2021 = ["2021-08-01","2021-08-11","2021-08-12","2021-08-13","2021-08-14",
+    #               "2021-08-15","2021-08-24","2021-08-25","2021-08-26","2021-08-27",
+    #               "2021-08-28","2021-08-29","2021-08-31"] #13
+    # september2021 = ["2021-09-02","2021-09-10","2021-09-11","2021-09-12","2021-09-13",
+    #                  "2021-09-14","2021-09-15","2021-09-17","2021-09-18","2021-09-19",
+    #                  "2021-09-28","2021-09-29","2021-09-30"] #13
+    # october2021 = [] #0
+    # #2022
+    # april2022 = ["2022-04-15","2022-04-16","2022-04-17","2022-04-19","2022-04-20",
+    #              "2022-04-21","2022-04-29","2022-04-30"] #8
+    # may2022 = ["2022-05-01","2022-05-02","2022-05-03","2022-05-04","2022-05-13",
+    #            "2022-05-14","2022-05-15","2022-05-17","2022-05-18","2022-05-19",
+    #            "2022-05-27","2022-05-28","2022-05-29","2022-05-30","2022-05-31"] #15 
+    # june2022 = ["2022-06-01","2022-06-14","2022-06-15","2022-06-16","2022-06-17",
+    #             "2022-06-18","2022-06-19","2022-06-20","2022-06-28","2022-06-29"] #10 
+    # july2022 = ["2022-07-01","2022-07-02","2022-07-03","2022-07-07","2022-07-08",
+    #             "2022-07-09","2022-07-10","2022-07-22","2022-07-23","2022-07-24",
+    #             "2022-07-26","2022-07-27"] #12 
+    # august2022 = ["2022-08-04","2022-08-05","2022-08-06","2022-08-07","2022-08-08",
+    #               "2022-08-09","2022-08-10","2022-08-12","2022-08-13","2022-08-14",
+    #               "2022-08-25","2022-08-26","2022-08-27","2022-08-28","2022-08-30","2022-08-31"] #16
+    # september2022 = ["2022-09-01","2022-09-02","2022-09-03","2022-09-04","2022-09-12",
+    #                  "2022-09-13","2022-09-14","2022-09-15","2022-09-16","2022-09-17",
+    #                  "2022-09-18","2022-09-27","2022-09-28"] #13
+    # october2022 = ["2022-10-04","2022-10-05","2022-10-07","2022-10-08","2022-10-09"] #5
     
-    date_list = {2021:[april2021, may2021, june2021, july2021, august2021, september2021],
-                 2022:[april2022, may2022, june2022, july2022, august2022, september2022, october2022]}
+    # date_list = {2021:[april2021, may2021, june2021, july2021, august2021, september2021],
+    #              2022:[april2022, may2022, june2022, july2022, august2022, september2022, october2022]}
     #print(date_list)
     #data has rain delays where games were canceled
     
     #creates WMO table and direction table
-    curr, conn = database_setup('baseball_weather.db')
+    curr, conn = database_setup('baseball_weather2.db')
     wmodata(curr,conn)
     direction(curr,conn)
-    soup_database('2021', "Apr", "04", curr, conn)
-    soup_database('2021', "May", "05", curr, conn)
-    soup_database('2021', "Jun", "06", curr, conn)
-    soup_database('2021', "Jul", "07", curr, conn)
-    soup_database('2021', "Aug", "08", curr, conn)
-    soup_database('2021', "Sep", "09", curr, conn)
-    soup_database('2021', "Oct", "10", curr, conn)
-    soup_database('2022', "Apr", "04", curr, conn)
-    soup_database('2022', "May", "05", curr, conn)
-    soup_database('2022', "Jun", "06", curr, conn)
-    soup_database('2022', "Jul", "07", curr, conn)
-    soup_database('2022', "Aug", "08", curr, conn)
-    soup_database('2022', "Sep", "09", curr, conn)
-    soup_database('2022', "Oct", "10", curr, conn)
+
+    #Creates table for all baseball data with less than 25 going in at a time
+    #Creates table for weather data calling the same dates from baseball data
+
+    soup_database('2021', "Apr", "april", "04", curr, conn) 
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "May", "may", "05", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "Jun", "june", "06", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "Jul", "july", "07", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "Aug", "august", "08", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "Sep", "september", "09", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2021', "Oct", "october", "10", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Apr", "april", "04", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "May", "may", "05", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Jun", "june", "06", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Jul", "july", "07", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Aug", "august", "08", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Sep", "september", "09", curr, conn)
+    call_apiread(date_dict, curr, conn)
+    soup_database('2022', "Oct", "december", "10", curr, conn)
+    call_apiread(date_dict, curr, conn)
     #-------------------------------------------------SINGLE INPUT-------------------------------------------------------#
     #Can change name of database here
     #cur, conn = database_setup('Weather.db')
@@ -194,14 +238,16 @@ def main():
     #-----------------------------------------------END INPUT-----------------------------------------------------#
     
     #puts all data into weather database Day_Weather in loop (still less than 25 each time)
-    for year in date_list:
-        for month in range(4,len(date_list[year])+4):
-            print("Inputing month " + str(month) + " of year " + str(year) + " weather data...")
-            #monthyear = year[]
-            apiread(month,year,date_list[year][month-4],curr,conn)
-            time.sleep(5)
-    print("Finished Database!")
-    pass
+
+
+    # for year in date_list:
+    #     for month in range(4,len(date_list[year])+4):
+    #         print("Inputing month " + str(month) + " of year " + str(year) + " weather data...")
+    #         #monthyear = year[]
+    #         apiread(month,year,date_list[year][month-4],curr,conn)
+    #         time.sleep(5)
+    # print("Finished Database!")
+    # pass
     # #puts single month from single year into database
     # month = 10 #did not get yet
     # year = 2022
