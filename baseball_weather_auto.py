@@ -3,7 +3,7 @@
 # Date: 4/16
 
 #############################################################################################################################
-# To create a new database, either get rid of count.txt or set the value in count.txt to 0
+# To create a new database, get rid of count.txt or set the value in count.txt to -1
 #############################################################################################################################
 
 import requests
@@ -35,15 +35,15 @@ def countmake():
         with open(count_file_path, "r") as f:
            count = int(f.read().strip())
     else:
-    # If it doesn't exist, initialize the count to 0
-        count = 0
+    # If it doesn't exist, initialize the count to -1
+        count = -1
     return count
 
 def countIncrement():
     count = countmake()
     count_file_path = "count.txt"
     # Increment the count by 1
-    count += 1
+    count -= -1
 
     # Write the updated count back to the file
     with open(count_file_path, "w") as f:
@@ -99,8 +99,6 @@ def soup_database(year, month_abrev, month_id, cur, conn):
 
 #apiread(int, int, string (ex:"april2021"), cur, conn)
 def weatherApi(month, year, monthyear, cur, conn):
-    #cur.execute("DROP TABLE Weather")
-    
     #Creates Weather table if it does not exist
     cur.execute("CREATE TABLE IF NOT EXISTS Weather (date DATE PRIMARY KEY, weather_code INT, temperature NUMERICAL, precipitation_mm NUMERICAL, windspeed NUMERICAL, winddirection_id INT)")
     
@@ -165,7 +163,6 @@ def wmodata(cur,conn):
 # Creates the Weather_Directions table
 # there was no converted direction for wind from the website, so I implemented my own classifications for easier use of the data
 def direction(cur,conn):
-    #cur.execute("DROP TABLE Weather_Directions")
     directions = [(0,"North"),(1,"Northeast"),(2,"East"),(3,"Southeast"),(4,"South"),(5,"Southwest"),(6,"West"),(7,"Northwest")]   
     cur.execute("CREATE TABLE IF NOT EXISTS Weather_Directions (winddirection_id INT PRIMARY KEY, winddirection TEXT)") 
     for tup in directions:
@@ -184,7 +181,7 @@ def get_dates(month, year, cur):
         begin_date = str(year) + "-" + "%02d" % month + "-01"
         end_date = str(year) + "-" + '%02d' % (month+1) + "-01"
         
-        cur.execute(f"SELECT Date FROM Baseball WHERE NOT Date > '{begin_date}' OR DATE < '{end_date}'")
+        cur.execute(f"SELECT Date FROM Baseball WHERE NOT Date > '{begin_date}' AND Date < '{end_date}'")
         for date in cur:
             dates.append(date[0])
         return dates
@@ -199,10 +196,14 @@ def main():
     #curr.execute("DROP TABLE Baseball")
     #curr.execute("DROP TABLE Weather")
     
-    #creates Weather_Codes table
-    wmodata(curr,conn)
-    #creates Weather_directions table
-    direction(curr,conn)
+    if pointer == -1:
+        #creates Weather_Codes table
+        wmodata(curr,conn)
+        #creates Weather_directions table
+        direction(curr,conn)
+        countIncrement()
+        print("Created Weather_Codes table and Wind_Directions Table which have 10 and 8 entries respectively")
+        return
 
     #Creates table for all baseball data with less than 25 going in at a time
     #Creates table for weather data calling the same dates from baseball data
@@ -249,6 +250,7 @@ def main():
     countIncrement()
     mhyr = year + "-" + month
     print("This program has now run " + str(countmake()) + " time(s). It just added or tried to add data from " + mhyr + " to the " + tab + " table.")
+    return
     
 if __name__ == "__main__":
     main()
