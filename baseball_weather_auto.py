@@ -181,20 +181,21 @@ def get_dates(month, year, cur):
         begin_date = str(year) + "-" + "%02d" % month + "-01"
         end_date = str(year) + "-" + '%02d' % (month+1) + "-01"
         
-        cur.execute(f"SELECT Date FROM Baseball WHERE NOT Date > '{begin_date}' AND Date < '{end_date}'")
+        cur.execute(f"SELECT Date FROM Baseball WHERE Date >= '{begin_date}' AND Date < '{end_date}'")
         for date in cur:
             dates.append(date[0])
         return dates
 
 def main():
     #creates WMO table and direction table
-    curr, conn = database_setup('baseball_weather2.db')
+    curr, conn = database_setup('baseball_weather3.db')
     
     #drops all tables if needed
     #curr.execute("DROP TABLE Weather_Codes")
     #curr.execute("DROP TABLE Weather_Directions")
     #curr.execute("DROP TABLE Baseball")
     #curr.execute("DROP TABLE Weather")
+    pointer = countmake()
     
     if pointer == -1:
         #creates Weather_Codes table
@@ -202,7 +203,7 @@ def main():
         #creates Weather_directions table
         direction(curr,conn)
         countIncrement()
-        print("Created Weather_Codes table and Wind_Directions Table which have 10 and 8 entries respectively")
+        print("Created Weather_Codes table and Wind_Directions Table which have 10 and 8 entries respectively.")
         return
 
     #Creates table for all baseball data with less than 25 going in at a time
@@ -211,7 +212,7 @@ def main():
     
     #By using the count that is grabbed from the 'count.txt' file, this program will iterate through
     #the confusion matrix by adding a month to the Baseball table, then adding a month to the Weather table
-    pointer = countmake()
+    
     #print(pointer)
     #Not an actual confusion matrix, it just looks weird
     confusionMatrix = [('2021', "Apr", "04"),(4,2021),
@@ -231,6 +232,7 @@ def main():
     #if the count/pointer is above the length of the confusion matrix, it won't break the code
     inputs = confusionMatrix[pointer % len(confusionMatrix)]
     #print(inputs)
+    #print(inputs)
     
     tab = ""
     month = ""
@@ -249,7 +251,7 @@ def main():
         weatherApi(inputs[0], inputs[1], get_dates(inputs[0], inputs[1], curr),curr,conn)
     countIncrement()
     mhyr = year + "-" + month
-    print("This program has now run " + str(countmake()) + " time(s). It just added or tried to add data from " + mhyr + " to the " + tab + " table.")
+    print("This program has now run " + str(countmake()+1) + " time(s). It just added or tried to add data from " + mhyr + " to the " + tab + " table.")
     return
     
 if __name__ == "__main__":
